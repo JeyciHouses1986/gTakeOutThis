@@ -69,6 +69,8 @@ async def _collect_download_targets(page: Page) -> List[str]:
 		"a[download]",
 		"a:has-text('Download')",
 		"button:has-text('Download')",
+		"a:has-text('Descargar')",
+		"button:has-text('Descargar')",
 		"a[href$='.zip']",
 	]
 	seen = set()
@@ -227,13 +229,20 @@ async def download_all(
 		page = await context.new_page()
 		await page.goto(url)
 		console.print("If prompted, please sign in to Google in the opened browser window.")
-		# Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
+	# Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
 		targets: List[str] = []
 		max_wait_ms = 10 * 60 * 1000
 		poll_ms = 1500
 		waited = 0
 		try:
 			while waited < max_wait_ms:
+			# Ensure we're on the Manage archive page; sometimes Google redirects to account chooser
+			try:
+				url_now = page.url
+				if "takeout.google.com" not in url_now:
+					await page.goto(url)
+			except Exception:
+				pass
 				try:
 					targets = await _collect_download_targets(page)
 				except Exception:
