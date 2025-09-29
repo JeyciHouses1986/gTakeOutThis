@@ -229,6 +229,26 @@ class MainWindow(QMainWindow):
 		else:
 			QMessageBox.information(self, "Updates", "You are on the latest version.")
 
+	def export_csv(self) -> None:
+		path, _ = QFileDialog.getSaveFileName(self, t("export_csv"), "gTakeOutThis-report.csv", "CSV Files (*.csv)")
+		if not path:
+			return
+		try:
+			self._report.export_csv(Path(path))
+			QMessageBox.information(self, t("export_csv"), "CSV report saved.")
+		except Exception as e:
+			QMessageBox.warning(self, t("export_csv"), f"Could not export CSV: {e}")
+
+	def export_html(self) -> None:
+		path, _ = QFileDialog.getSaveFileName(self, t("export_html"), "gTakeOutThis-report.html", "HTML Files (*.html)")
+		if not path:
+			return
+		try:
+			self._report.export_html(Path(path))
+			QMessageBox.information(self, t("export_html"), "HTML report saved.")
+		except Exception as e:
+			QMessageBox.warning(self, t("export_html"), f"Could not export HTML: {e}")
+
 	def pick_root_dir(self) -> None:
 		p = QFileDialog.getExistingDirectory(self, "Select root folder")
 		if not p:
