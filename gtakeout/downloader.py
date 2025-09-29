@@ -71,6 +71,7 @@ async def _collect_download_targets(page: Page) -> List[str]:
 		"button:has-text('Download')",
 		"a:has-text('Descargar')",
 		"button:has-text('Descargar')",
+		"a[href*='download']",
 		"a[href$='.zip']",
 	]
 	seen = set()
@@ -152,27 +153,33 @@ async def _prepare_context(browser: str, download_dir: Path, user_profile_dir: O
 					chrome_executable = path
 					break
 			
-			try:
-				if chrome_executable:
-					# Launch installed Chrome with explicit executable path
-					context = await p.chromium.launch_persistent_context(
-						str(user_data_dir),
-						executable_path=chrome_executable,
-						headless=False,
-						accept_downloads=True,
-						args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
-					)
-					return context
-				else:
-					# Try Chrome channel as fallback
-					context = await p.chromium.launch_persistent_context(
-						str(user_data_dir),
-						channel="chrome",
-						headless=False,
-						accept_downloads=True,
-						args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
-					)
-					return context
+		try:
+			launch_args = [
+				"--disable-blink-features=AutomationControlled",
+				"--disable-web-security",
+				"--disable-features=IsolateOrigins,site-per-process",
+				"--start-maximized",
+			]
+			if chrome_executable:
+				# Launch installed Chrome with explicit executable path
+				context = await p.chromium.launch_persistent_context(
+					str(user_data_dir),
+					executable_path=chrome_executable,
+					headless=False,
+					accept_downloads=True,
+					args=launch_args,
+				)
+				return context
+			else:
+				# Try Chrome channel as fallback
+				context = await p.chromium.launch_persistent_context(
+					str(user_data_dir),
+					channel="chrome",
+					headless=False,
+					accept_downloads=True,
+					args=launch_args,
+				)
+				return context
 			except Exception:
 				# Final fallback to bundled Chromium
 				browser_obj = await p.chromium.launch(
@@ -236,13 +243,19 @@ async def download_all(
 		waited = 0
 		try:
 			while waited < max_wait_ms:
-			# Ensure we're on the Manage archive page; sometimes Google redirects to account chooser
+				# Ensure we're on the Manage archive page; sometimes Google redirects to account chooser or interstitials
 			try:
 				url_now = page.url
 				if "takeout.google.com" not in url_now:
 					await page.goto(url)
 			except Exception:
 				pass
+				# Scroll to make lazy-loaded buttons appear
+				try:
+					await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+					await page.wait_for_timeout(500)
+				except Exception:
+					pass
 				try:
 					targets = await _collect_download_targets(page)
 				except Exception:
