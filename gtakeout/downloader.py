@@ -136,18 +136,47 @@ async def _prepare_context(browser: str, download_dir: Path, user_profile_dir: O
 			# Prefer real Chrome channel. If caller provided a profile, use it; else use app-scoped profile.
 			user_data_dir = user_profile_dir or (Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "chrome-profile")
 			user_data_dir.mkdir(parents=True, exist_ok=True)
+			
+			# Try multiple Chrome detection methods
+			chrome_paths = [
+				"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+				"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+				os.path.expanduser("~\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe"),
+			]
+			
+			chrome_executable = None
+			for path in chrome_paths:
+				if Path(path).exists():
+					chrome_executable = path
+					break
+			
 			try:
-				# Launch installed Chrome if available
-				context = await p.chromium.launch_persistent_context(
-					str(user_data_dir),
-					channel="chrome",
-					headless=False,
-					accept_downloads=True,
-				)
-				return context
+				if chrome_executable:
+					# Launch installed Chrome with explicit executable path
+					context = await p.chromium.launch_persistent_context(
+						str(user_data_dir),
+						executable_path=chrome_executable,
+						headless=False,
+						accept_downloads=True,
+						args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
+					)
+					return context
+				else:
+					# Try Chrome channel as fallback
+					context = await p.chromium.launch_persistent_context(
+						str(user_data_dir),
+						channel="chrome",
+						headless=False,
+						accept_downloads=True,
+						args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
+					)
+					return context
 			except Exception:
-				# Fallback to bundled Chromium if Chrome channel not available
-				browser_obj = await p.chromium.launch(headless=False)
+				# Final fallback to bundled Chromium
+				browser_obj = await p.chromium.launch(
+					headless=False,
+					args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
+				)
 				context = await browser_obj.new_context(accept_downloads=True)
 				return context
 
