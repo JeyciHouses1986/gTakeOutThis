@@ -180,14 +180,14 @@ async def _prepare_context(browser: str, download_dir: Path, user_profile_dir: O
 					args=launch_args,
 				)
 				return context
-			except Exception:
-				# Final fallback to bundled Chromium
-				browser_obj = await p.chromium.launch(
-					headless=False,
-					args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
-				)
-				context = await browser_obj.new_context(accept_downloads=True)
-				return context
+		except Exception:
+			# Final fallback to bundled Chromium
+			browser_obj = await p.chromium.launch(
+				headless=False,
+				args=["--disable-blink-features=AutomationControlled", "--disable-web-security"]
+			)
+			context = await browser_obj.new_context(accept_downloads=True)
+			return context
 
 	try:
 		return await _launch()
