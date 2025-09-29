@@ -189,25 +189,43 @@ async def download_all(
 	state.save()
 
 	context = await _prepare_context(browser, download_path)
-	page = await context.new_page()
-	await page.goto(url)
-	console.print("If prompted, please sign in to Google in the opened browser window.")
-
-	# Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
-	targets: List[str] = []
-	max_wait_ms = 10 * 60 * 1000
-	poll_ms = 1500
-	waited = 0
-	while waited < max_wait_ms:
+	# Try a few times in case Google or the user closes the window during sign-in
+	attempts = 0
+	max_attempts = 3
+	while True:
+		attempts += 1
+		page = await context.new_page()
+		await page.goto(url)
+		console.print("If prompted, please sign in to Google in the opened browser window.")
+		# Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
+		targets: List[str] = []
+		max_wait_ms = 10 * 60 * 1000
+		poll_ms = 1500
+		waited = 0
 		try:
-			targets = await _collect_download_targets(page)
-		except Exception:
-			targets = []
-		if targets:
-			break
-		# Keep the window open to allow user to complete login/2FA
-		await page.wait_for_timeout(poll_ms)
-		waited += poll_ms
+			while waited < max_wait_ms:
+				try:
+					targets = await _collect_download_targets(page)
+				except Exception:
+					targets = []
+				if targets:
+					break
+				# Keep the window open to allow user to complete login/2FA
+				await page.wait_for_timeout(poll_ms)
+				waited += poll_ms
+		except Exception as e:
+			# If the page or context was closed, recreate and retry a limited number of times
+			if attempts < max_attempts and ("Target page" in str(e) or "has been closed" in str(e)):
+				try:
+					await context.close()
+				except Exception:
+					pass
+				context = await _prepare_context(browser, download_path)
+				continue
+			else:
+				raise
+		# Exit attempt loop when we have targets or max wait elapsed
+		break
 
 	total_files = len(targets)
 	if progress_cb:
