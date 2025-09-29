@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import subprocess
 import sys
 import json
@@ -98,7 +99,45 @@ async def _click_target(page: Page, key: str) -> None:
 	await elem.click(delay=50)
 
 
+def _ensure_persistent_browsers_path() -> None:
+    # When frozen (PyInstaller), Playwright defaults under a temp folder that gets deleted.
+    # Force a persistent per-user path so browsers survive across runs.
+    try:
+        if os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+            return
+        # Windows-friendly local app data location
+        base = Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "playwright-browsers"
+        base.mkdir(parents=True, exist_ok=True)
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(base)
+    except Exception:
+        pass
+
+
+def _install_browsers_programmatically(target_browser: str) -> None:
+    # Try invoking Playwright's CLI entrypoint programmatically (works in frozen apps)
+    try:
+        from playwright.__main__ import main as playwright_main  # type: ignore
+        argv_backup = list(sys.argv)
+        try:
+            sys.argv = ["playwright", "install", target_browser]
+            playwright_main()
+        finally:
+            sys.argv = argv_backup
+        return
+    except Exception:
+        pass
+
+    # Fallback: attempt subprocess using system python if available
+    for py_cmd in (sys.executable, "python", "py"):
+        try:
+            subprocess.run([py_cmd, "-m", "playwright", "install", target_browser], check=True)
+            return
+        except Exception:
+            continue
+
+
 async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
+    _ensure_persistent_browsers_path()
     p = await async_playwright().start()
     async def _launch() -> BrowserContext:
         if browser == "firefox":
@@ -123,16 +162,8 @@ async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
         )
         if not need_install:
             raise
-        # Run: python -m playwright install <browser>
-        try:
-            args = [sys.executable, "-m", "playwright", "install", browser]
-            subprocess.run(args, check=True)
-        except Exception:
-            # Fallback to generic install if specific fails
-            try:
-                subprocess.run([sys.executable, "-m", "playwright", "install"], check=True)
-            except Exception:
-                pass
+        # Install browsers to the persistent path and retry
+        _install_browsers_programmatically(browser)
         # Retry once after install
         return await _launch()
 
