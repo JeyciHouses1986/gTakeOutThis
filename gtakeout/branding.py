@@ -1,0 +1,6 @@
+APP_NAME = "gTakeOutThis"
+APP_VERSION = "0.1.0"
+PUBLISHER = "Javier C."
+GITHUB_OWNER = "JeyciHouses1986"
+GITHUB_REPO = "gTakeOutThis"
+WINDOW_TITLE = f"{APP_NAME}"
