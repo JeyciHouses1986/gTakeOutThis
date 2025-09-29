@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
+import os
 from typing import Optional, Dict, Any
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -11,6 +12,7 @@ from PySide6.QtWidgets import (
 	QComboBox,
 	QFileDialog,
 	QGridLayout,
+	QCheckBox,
 	QHBoxLayout,
 	QLabel,
 	QLineEdit,
@@ -100,6 +102,23 @@ class MainWindow(QMainWindow):
 		self.url_edit = QLineEdit()
 		self.browser_combo = QComboBox()
 		self.browser_combo.addItems(["chromium", "firefox", "webkit"])
+		self.chk_use_chrome_profile = QCheckBox("Use system Chrome profile")
+		self.chrome_profile_edit = QLineEdit(); self.chrome_profile_edit.setPlaceholderText("%LOCALAPPDATA%/Google/Chrome/User Data/Default")
+		self.chrome_profile_browse = QPushButton("Browse…")
+		self.chrome_profile_edit.setEnabled(False); self.chrome_profile_browse.setEnabled(False)
+		def _on_chk_changed(state: int) -> None:
+			en = self.chk_use_chrome_profile.isChecked()
+			self.chrome_profile_edit.setEnabled(en)
+			self.chrome_profile_browse.setEnabled(en)
+			if en and not self.chrome_profile_edit.text().strip():
+				base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+				self.chrome_profile_edit.setText(str(Path(base)/"Google"/"Chrome"/"User Data"/"Default"))
+		self.chk_use_chrome_profile.stateChanged.connect(_on_chk_changed)
+		def _pick_profile_dir() -> None:
+			p = QFileDialog.getExistingDirectory(self, "Select Chrome profile directory")
+			if p:
+				self.chrome_profile_edit.setText(p)
+		self.chrome_profile_browse.clicked.connect(_pick_profile_dir)
 
 		self.root_edit = QLineEdit()
 		btn_pick_root = QPushButton("Browse…")
@@ -109,9 +128,13 @@ class MainWindow(QMainWindow):
 		grid.addWidget(self.url_edit, 0, 1, 1, 3)
 		grid.addWidget(QLabel("Browser:"), 1, 0)
 		grid.addWidget(self.browser_combo, 1, 1)
+		grid.addWidget(self.chk_use_chrome_profile, 1, 2, 1, 2)
+		grid.addWidget(QLabel("Chrome profile:"), 2, 0)
+		grid.addWidget(self.chrome_profile_edit, 2, 1, 1, 2)
+		grid.addWidget(self.chrome_profile_browse, 2, 3)
 		grid.addWidget(QLabel("Root folder:"), 2, 0)
-		grid.addWidget(self.root_edit, 2, 1, 1, 2)
-		grid.addWidget(btn_pick_root, 2, 3)
+		grid.addWidget(self.root_edit, 3, 1, 1, 2)
+		grid.addWidget(btn_pick_root, 3, 3)
 
 		# Derived paths (read-only)
 		self.download_edit = QLineEdit(); self.download_edit.setReadOnly(True)
@@ -120,12 +143,12 @@ class MainWindow(QMainWindow):
 		self.org_src_edit = QLineEdit(); self.org_src_edit.setReadOnly(True)
 		self.org_dst_edit = QLineEdit(); self.org_dst_edit.setReadOnly(True)
 
-		grid.addWidget(QLabel("Zips will be saved in:"), 3, 0)
-		grid.addWidget(self.download_edit, 3, 1, 1, 3)
-		grid.addWidget(QLabel("Extracted files folder:"), 4, 0)
-		grid.addWidget(self.extract_dst_edit, 4, 1, 1, 3)
-		grid.addWidget(QLabel("Final organized folder:"), 5, 0)
-		grid.addWidget(self.org_dst_edit, 5, 1, 1, 3)
+		grid.addWidget(QLabel("Zips will be saved in:"), 4, 0)
+		grid.addWidget(self.download_edit, 4, 1, 1, 3)
+		grid.addWidget(QLabel("Extracted files folder:"), 5, 0)
+		grid.addWidget(self.extract_dst_edit, 5, 1, 1, 3)
+		grid.addWidget(QLabel("Final organized folder:"), 6, 0)
+		grid.addWidget(self.org_dst_edit, 6, 1, 1, 3)
 
 		row = QHBoxLayout()
 		self.btn_download = QPushButton(t("download_archives"))
@@ -314,6 +337,7 @@ class MainWindow(QMainWindow):
 			url,
 			download_dir=zips,
 			browser=self.browser_combo.currentText(),
+			chrome_profile_dir=(Path(self.chrome_profile_edit.text().strip()) if self.chk_use_chrome_profile.isChecked() and self.chrome_profile_edit.text().strip() else None),
 			cancel=self._cancel_token,
 			resume=True,
 		)
