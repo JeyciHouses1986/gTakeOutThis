@@ -29,8 +29,8 @@ def main() -> None:
 	p_dl = sub.add_parser("download", help="Open Takeout page and download all parts sequentially")
 	p_dl.add_argument("--url", required=True, help="Takeout download page URL")
 	p_dl.add_argument("--download-dir", required=True, type=_ensure_dir, help="Directory to save downloads")
-    p_dl.add_argument("--browser", choices=["chromium", "firefox", "webkit"], default="chromium")
-    p_dl.add_argument("--chrome-profile-dir", type=Path, required=False, help="Use existing Chrome user profile directory for login (e.g. %LOCALAPPDATA%/Google/Chrome/User Data/Default)")
+	p_dl.add_argument("--browser", choices=["chromium", "firefox", "webkit"], default="chromium")
+	p_dl.add_argument("--chrome-profile-dir", type=Path, required=False, help="Use existing Chrome user profile directory for login (e.g. %LOCALAPPDATA%/Google/Chrome/User Data/Default)")
 
 	p_ex = sub.add_parser("extract", help="Extract all ZIPs from download dir")
 	p_ex.add_argument("--download-dir", required=True, type=_existing_dir)
@@ -42,8 +42,8 @@ def main() -> None:
 
 	args = parser.parse_args()
 
-    if args.cmd == "download":
-        asyncio.run(download_all(args.url, args.download_dir, args.browser, chrome_profile_dir=args.chrome_profile_dir))
+	if args.cmd == "download":
+		asyncio.run(download_all(args.url, args.download_dir, args.browser, chrome_profile_dir=args.chrome_profile_dir))
 	elif args.cmd == "extract":
 		extract_all(args.download_dir, args.extract_dir)
 	elif args.cmd == "organize":
