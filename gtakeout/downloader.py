@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
+import sys
 import json
 from pathlib import Path
 from typing import List, Optional, Set, Dict, Any, Callable
@@ -97,16 +99,42 @@ async def _click_target(page: Page, key: str) -> None:
 
 
 async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
-	p = await async_playwright().start()
-	if browser == "firefox":
-		browser_obj = await p.firefox.launch(headless=False)
-	elif browser == "webkit":
-		browser_obj = await p.webkit.launch(headless=False)
-	else:
-		browser_obj = await p.chromium.launch(headless=False)
-	context = await browser_obj.new_context(accept_downloads=True)
-	context.set_default_downloads_path(str(download_dir))
-	return context
+    p = await async_playwright().start()
+    async def _launch() -> BrowserContext:
+        if browser == "firefox":
+            browser_obj = await p.firefox.launch(headless=False)
+        elif browser == "webkit":
+            browser_obj = await p.webkit.launch(headless=False)
+        else:
+            browser_obj = await p.chromium.launch(headless=False)
+        context = await browser_obj.new_context(accept_downloads=True)
+        context.set_default_downloads_path(str(download_dir))
+        return context
+
+    try:
+        return await _launch()
+    except Exception as e:
+        # Attempt first-run browser install if Playwright runtime is missing
+        msg = str(e)
+        need_install = (
+            "Executable doesn't exist" in msg
+            or "browserType.launch" in msg.lower()
+            or "Please run the following command to download new browsers" in msg
+        )
+        if not need_install:
+            raise
+        # Run: python -m playwright install <browser>
+        try:
+            args = [sys.executable, "-m", "playwright", "install", browser]
+            subprocess.run(args, check=True)
+        except Exception:
+            # Fallback to generic install if specific fails
+            try:
+                subprocess.run([sys.executable, "-m", "playwright", "install"], check=True)
+            except Exception:
+                pass
+        # Retry once after install
+        return await _launch()
 
 
 async def download_all(
