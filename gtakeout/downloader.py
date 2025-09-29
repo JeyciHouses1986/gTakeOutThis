@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.progress import Progress
 from playwright.async_api import async_playwright, Page, BrowserContext
 
-console = Console()
+console = Console(force_terminal=True, legacy_windows=False)
 
 
 ProgressCallback = Callable[[Dict[str, Any]], None]

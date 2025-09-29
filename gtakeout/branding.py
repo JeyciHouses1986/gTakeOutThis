@@ -1,5 +1,5 @@
 APP_NAME = "gTakeOutThis"
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.1.3"
 PUBLISHER = "Javier C."
 GITHUB_OWNER = "JeyciHouses1986"
 GITHUB_REPO = "gTakeOutThis"
