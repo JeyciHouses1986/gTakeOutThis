@@ -1,6 +1,6 @@
 ## gTakeOutThis
 
-A simple Windows app to help you download your Google Takeout photos, unzip them, and organize them by date into folders.
+Windows app to download your Google Takeout photo archives sequentially, extract ZIPs, and organize photos by date. Now supports signing in with your existing Chrome profile for reliable Google login.
 
 ### What you need
 - A Windows 10/11 PC
@@ -13,10 +13,12 @@ A simple Windows app to help you download your Google Takeout photos, unzip them
 2) Right‑click the ZIP → Extract All… → choose a folder (e.g., `C:\Users\<you>\Downloads\gTakeOutThis`).
 3) Open the extracted folder and double‑click `gTakeOutThis.exe`.
 
-Note: The first time you use the Download feature, the app will automatically download a browser engine (Playwright) in the background. This is normal and only needs to happen once.
+Notes:
+- On the first Download, the app will fetch a browser runtime if needed (Playwright). This only happens once.
+- To avoid Google’s “This browser or app may not be secure” warning, use your system Chrome profile (see below).
 
 ### The app has three main steps
-- Download: it opens a browser window and clicks each Takeout part link, one by one. It waits for each to finish before starting the next.
+- Download: it opens Chrome (with your profile if selected) and clicks each Takeout part link, one by one. It waits for each to finish before starting the next.
 - Extract: it unzips the downloaded files into a folder.
 - Organize: it sorts photos into folders by date: Year/Month/Day. If a photo has no date inside, it uses Google’s sidecar JSON or the file’s modified time.
 
@@ -25,8 +27,9 @@ Note: The first time you use the Download feature, the app will automatically do
    - Copy your Google Takeout download page URL.
    - Open the app and paste the URL into the “Takeout URL” box.
    - Pick a “Download folder” (create one if needed).
-   - Click “Download Archives”. A browser window appears — sign in to Google if asked.
-   - The app clicks each download link and waits for each to complete. You can click “Pause” any time to stop and continue later.
+   - Optional: check “Use system Chrome profile.” This launches your installed Chrome with your existing login session. The profile path auto‑fills (you can change it).
+   - Click “Download Archives”. A Chrome window appears. If asked, sign in; the app waits and then starts clicking each archive link in order.
+   - You can click “Pause” any time to stop and continue later.
    - You can minimize the app to the system tray; it keeps working.
 
 2) Extract
@@ -50,6 +53,7 @@ Note: The first time you use the Download feature, the app will automatically do
 
 ### Settings
 - Language: switch between English and Spanish in the top area.
+- Use system Chrome profile: launches Chrome with your chosen user profile to keep your Google login.
 - CPU Priority: choose Low/Normal/High if you want the app to use fewer or more PC resources.
 - Workers: you can increase or reduce the number of parallel workers for extracting and organizing (advanced; defaults are fine for most users).
 
@@ -63,8 +67,9 @@ Note: The first time you use the Download feature, the app will automatically do
 - To update: download the new ZIP from Releases, extract it, and run the new `gTakeOutThis.exe`.
 
 ### Troubleshooting
-- Windows SmartScreen warns about running: click “More info” → “Run anyway” (you can also add the folder to Windows Defender exceptions if needed).
-- Google sign‑in fails: ensure you’re logged into the correct Google account in the opened browser window.
+- Windows SmartScreen warns about running: click “More info” → “Run anyway”. For best experience, code‑signed builds will avoid this.
+- Google sign‑in warns “This browser or app may not be secure”: check “Use system Chrome profile” and pick your profile folder (e.g. `C:\Users\<you>\AppData\Local\Google\Chrome\User Data\Default`).
+- Page opens but no downloads start: make sure you’re on your Takeout Manage Archive page with visible “Download/Descargar” buttons; the app searches and clicks them sequentially.
 - Not all links download: re‑run Download; the app continues where it left off and skips what’s already done.
 - Not enough disk space: free up space on the drive or choose a different folder on another drive.
 - Slow internet: use Pause and resume later; the app saves progress.
@@ -75,8 +80,9 @@ Note: The first time you use the Download feature, the app will automatically do
 - Does the app modify photos? It moves files into folders. It reads EXIF/JSON to determine dates; it does not edit the image contents.
 
 ### Advanced (optional)
-- If you prefer the command line, you can still run:
-  - Download: `python -m gtakeout.cli download --url "<URL>" --download-dir "C:\path\to\downloads"`
+- CLI examples:
+  - Download (with Chrome profile):
+    `python -m gtakeout.cli download --url "<URL>" --download-dir "C:\path\to\downloads" --chrome-profile-dir "%LOCALAPPDATA%\Google\Chrome\User Data\Default"`
   - Extract: `python -m gtakeout.cli extract --download-dir "C:\path\to\downloads" --extract-dir "C:\path\to\downloads\extracted"`
   - Organize: `python -m gtakeout.cli organize --source-dir "C:\path\to\downloads\extracted" --dest-dir "C:\path\to\Organized"`
 
