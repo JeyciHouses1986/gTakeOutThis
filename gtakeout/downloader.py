@@ -114,23 +114,11 @@ def _ensure_persistent_browsers_path() -> None:
 
 
 def _install_browsers_programmatically(target_browser: str) -> None:
-    # Try invoking Playwright's CLI entrypoint programmatically (works in frozen apps)
-    try:
-        from playwright.__main__ import main as playwright_main  # type: ignore
-        argv_backup = list(sys.argv)
-        try:
-            sys.argv = ["playwright", "install", target_browser]
-            playwright_main()
-        finally:
-            sys.argv = argv_backup
-        return
-    except Exception:
-        pass
-
-    # Fallback: attempt subprocess using system python if available
+    # Always install via subprocess to avoid interfering with current asyncio loop
+    env = os.environ.copy()
     for py_cmd in (sys.executable, "python", "py"):
         try:
-            subprocess.run([py_cmd, "-m", "playwright", "install", target_browser], check=True)
+            subprocess.run([py_cmd, "-m", "playwright", "install", target_browser], check=True, env=env)
             return
         except Exception:
             continue
