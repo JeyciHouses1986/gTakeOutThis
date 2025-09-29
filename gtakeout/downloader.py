@@ -100,59 +100,59 @@ async def _click_target(page: Page, key: str) -> None:
 
 
 def _ensure_persistent_browsers_path() -> None:
-    # When frozen (PyInstaller), Playwright defaults under a temp folder that gets deleted.
-    # Force a persistent per-user path so browsers survive across runs.
-    try:
-        if os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
-            return
-        # Windows-friendly local app data location
-        base = Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "playwright-browsers"
-        base.mkdir(parents=True, exist_ok=True)
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(base)
-    except Exception:
-        pass
+	# When frozen (PyInstaller), Playwright defaults under a temp folder that gets deleted.
+	# Force a persistent per-user path so browsers survive across runs.
+	try:
+		if os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+			return
+		# Windows-friendly local app data location
+		base = Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "playwright-browsers"
+		base.mkdir(parents=True, exist_ok=True)
+		os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(base)
+	except Exception:
+		pass
 
 
 def _install_browsers_programmatically(target_browser: str) -> None:
-    # Always install via subprocess to avoid interfering with current asyncio loop
-    env = os.environ.copy()
-    for py_cmd in (sys.executable, "python", "py"):
-        try:
-            subprocess.run([py_cmd, "-m", "playwright", "install", target_browser], check=True, env=env)
-            return
-        except Exception:
-            continue
+	# Always install via subprocess to avoid interfering with current asyncio loop
+	env = os.environ.copy()
+	for py_cmd in (sys.executable, "python", "py"):
+		try:
+			subprocess.run([py_cmd, "-m", "playwright", "install", target_browser], check=True, env=env)
+			return
+		except Exception:
+			continue
 
 
 async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
-    _ensure_persistent_browsers_path()
-    p = await async_playwright().start()
-    async def _launch() -> BrowserContext:
-        if browser == "firefox":
-            browser_obj = await p.firefox.launch(headless=False)
-        elif browser == "webkit":
-            browser_obj = await p.webkit.launch(headless=False)
-        else:
-            browser_obj = await p.chromium.launch(headless=False)
-        context = await browser_obj.new_context(accept_downloads=True)
-        return context
+	_ensure_persistent_browsers_path()
+	p = await async_playwright().start()
+	async def _launch() -> BrowserContext:
+		if browser == "firefox":
+			browser_obj = await p.firefox.launch(headless=False)
+		elif browser == "webkit":
+			browser_obj = await p.webkit.launch(headless=False)
+		else:
+			browser_obj = await p.chromium.launch(headless=False)
+		context = await browser_obj.new_context(accept_downloads=True)
+		return context
 
-    try:
-        return await _launch()
-    except Exception as e:
-        # Attempt first-run browser install if Playwright runtime is missing
-        msg = str(e)
-        need_install = (
-            "Executable doesn't exist" in msg
-            or "browserType.launch" in msg.lower()
-            or "Please run the following command to download new browsers" in msg
-        )
-        if not need_install:
-            raise
-        # Install browsers to the persistent path and retry
-        _install_browsers_programmatically(browser)
-        # Retry once after install
-        return await _launch()
+	try:
+		return await _launch()
+	except Exception as e:
+		# Attempt first-run browser install if Playwright runtime is missing
+		msg = str(e)
+		need_install = (
+			"Executable doesn't exist" in msg
+			or "browserType.launch" in msg.lower()
+			or "Please run the following command to download new browsers" in msg
+		)
+		if not need_install:
+			raise
+		# Install browsers to the persistent path and retry
+		_install_browsers_programmatically(browser)
+		# Retry once after install
+		return await _launch()
 
 
 async def download_all(
@@ -175,31 +175,31 @@ async def download_all(
 	state.save()
 
 	context = await _prepare_context(browser, download_path)
-    page = await context.new_page()
-    await page.goto(url)
-    console.print("If prompted, please sign in to Google in the opened browser window.")
+	page = await context.new_page()
+	await page.goto(url)
+	console.print("If prompted, please sign in to Google in the opened browser window.")
 
-    # Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
-    targets: List[str] = []
-    max_wait_ms = 10 * 60 * 1000
-    poll_ms = 1500
-    waited = 0
-    while waited < max_wait_ms:
-        try:
-            targets = await _collect_download_targets(page)
-        except Exception:
-            targets = []
-        if targets:
-            break
-        # Keep the window open to allow user to complete login/2FA
-        await page.wait_for_timeout(poll_ms)
-        waited += poll_ms
+	# Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
+	targets: List[str] = []
+	max_wait_ms = 10 * 60 * 1000
+	poll_ms = 1500
+	waited = 0
+	while waited < max_wait_ms:
+		try:
+			targets = await _collect_download_targets(page)
+		except Exception:
+			targets = []
+		if targets:
+			break
+		# Keep the window open to allow user to complete login/2FA
+		await page.wait_for_timeout(poll_ms)
+		waited += poll_ms
 
-    total_files = len(targets)
+	total_files = len(targets)
 	if progress_cb:
 		progress_cb({"phase": "download", "event": "start", "total_files": total_files, "completed_files": len(state.completed_keys), "bytes_total": None, "bytes_completed": sum((download_path / f).stat().st_size for f in state.completed_files if (download_path / f).exists())})
-    if not targets:
-        console.print("[yellow]No download links found after waiting. Check the URL or sign-in status, then try again.[/]")
+	if not targets:
+		console.print("[yellow]No download links found after waiting. Check the URL or sign-in status, then try again.[/]")
 		await context.close()
 		return
 
