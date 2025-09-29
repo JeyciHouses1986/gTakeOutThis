@@ -135,7 +135,6 @@ async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
         else:
             browser_obj = await p.chromium.launch(headless=False)
         context = await browser_obj.new_context(accept_downloads=True)
-        context.set_default_downloads_path(str(download_dir))
         return context
 
     try:
