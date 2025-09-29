@@ -124,7 +124,7 @@ def _install_browsers_programmatically(target_browser: str) -> None:
 			continue
 
 
-async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
+async def _prepare_context(browser: str, download_dir: Path, user_profile_dir: Optional[Path] = None) -> BrowserContext:
 	_ensure_persistent_browsers_path()
 	p = await async_playwright().start()
 	async def _launch() -> BrowserContext:
@@ -133,8 +133,8 @@ async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
 		elif browser == "webkit":
 			browser_obj = await p.webkit.launch(headless=False)
 		else:
-			# Prefer real Chrome channel with a persistent user data dir to satisfy Google login
-			user_data_dir = Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "chrome-profile"
+			# Prefer real Chrome channel. If caller provided a profile, use it; else use app-scoped profile.
+			user_data_dir = user_profile_dir or (Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "chrome-profile")
 			user_data_dir.mkdir(parents=True, exist_ok=True)
 			try:
 				# Launch installed Chrome if available
@@ -176,6 +176,7 @@ async def download_all(
 	cancel: Optional[CancelToken] = None,
 	resume: bool = True,
 	progress_cb: Optional[ProgressCallback] = None,
+	chrome_profile_dir: Optional[Path] = None,
 ) -> None:
 	download_path = Path(download_dir)
 	download_path.mkdir(parents=True, exist_ok=True)
@@ -188,7 +189,7 @@ async def download_all(
 		state.completed_files.add(p.name)
 	state.save()
 
-	context = await _prepare_context(browser, download_path)
+	context = await _prepare_context(browser, download_path, chrome_profile_dir)
 	# Try a few times in case Google or the user closes the window during sign-in
 	attempts = 0
 	max_attempts = 3
