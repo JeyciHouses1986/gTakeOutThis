@@ -175,17 +175,31 @@ async def download_all(
 	state.save()
 
 	context = await _prepare_context(browser, download_path)
-	page = await context.new_page()
-	await page.goto(url)
-	console.print("If prompted, please sign in to Google in the opened browser window.")
-	await page.wait_for_timeout(2000)
+    page = await context.new_page()
+    await page.goto(url)
+    console.print("If prompted, please sign in to Google in the opened browser window.")
 
-	targets = await _collect_download_targets(page)
-	total_files = len(targets)
+    # Wait for user sign-in and page to show downloadable links (poll up to ~10 minutes)
+    targets: List[str] = []
+    max_wait_ms = 10 * 60 * 1000
+    poll_ms = 1500
+    waited = 0
+    while waited < max_wait_ms:
+        try:
+            targets = await _collect_download_targets(page)
+        except Exception:
+            targets = []
+        if targets:
+            break
+        # Keep the window open to allow user to complete login/2FA
+        await page.wait_for_timeout(poll_ms)
+        waited += poll_ms
+
+    total_files = len(targets)
 	if progress_cb:
 		progress_cb({"phase": "download", "event": "start", "total_files": total_files, "completed_files": len(state.completed_keys), "bytes_total": None, "bytes_completed": sum((download_path / f).stat().st_size for f in state.completed_files if (download_path / f).exists())})
-	if not targets:
-		console.print("[yellow]No download links found. Check the URL or sign-in status.[/]")
+    if not targets:
+        console.print("[yellow]No download links found after waiting. Check the URL or sign-in status, then try again.[/]")
 		await context.close()
 		return
 
