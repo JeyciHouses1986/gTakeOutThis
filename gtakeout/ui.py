@@ -93,49 +93,39 @@ class MainWindow(QMainWindow):
 
 		layout = QVBoxLayout(central)
 
-		# URL + Browser + Download dir
+		# URL + Root folder + Browser
 		grid = QGridLayout()
 		layout.addLayout(grid)
 
 		self.url_edit = QLineEdit()
 		self.browser_combo = QComboBox()
 		self.browser_combo.addItems(["chromium", "firefox", "webkit"])
-		self.download_edit = QLineEdit()
-		btn_pick_download = QPushButton("Browse…")
-		btn_pick_download.clicked.connect(self.pick_download_dir)
+
+		self.root_edit = QLineEdit()
+		btn_pick_root = QPushButton("Browse…")
+		btn_pick_root.clicked.connect(self.pick_root_dir)
 
 		grid.addWidget(QLabel("Takeout URL:"), 0, 0)
 		grid.addWidget(self.url_edit, 0, 1, 1, 3)
 		grid.addWidget(QLabel("Browser:"), 1, 0)
 		grid.addWidget(self.browser_combo, 1, 1)
-		grid.addWidget(QLabel("Download folder:"), 2, 0)
-		grid.addWidget(self.download_edit, 2, 1, 1, 2)
-		grid.addWidget(btn_pick_download, 2, 3)
+		grid.addWidget(QLabel("Root folder:"), 2, 0)
+		grid.addWidget(self.root_edit, 2, 1, 1, 2)
+		grid.addWidget(btn_pick_root, 2, 3)
 
-		# Priority + Language + Worker limits
-		grid.addWidget(QLabel("CPU Priority:"), 3, 0)
-		self.priority_combo = QComboBox()
-		self.priority_combo.addItems(["low", "normal", "high"])
-		self.priority_combo.currentTextChanged.connect(set_process_priority)
-		grid.addWidget(self.priority_combo, 3, 1)
+		# Derived paths (read-only)
+		self.download_edit = QLineEdit(); self.download_edit.setReadOnly(True)
+		self.extract_src_edit = QLineEdit(); self.extract_src_edit.setReadOnly(True)
+		self.extract_dst_edit = QLineEdit(); self.extract_dst_edit.setReadOnly(True)
+		self.org_src_edit = QLineEdit(); self.org_src_edit.setReadOnly(True)
+		self.org_dst_edit = QLineEdit(); self.org_dst_edit.setReadOnly(True)
 
-		grid.addWidget(QLabel("Language:"), 3, 2)
-		self.lang_combo = QComboBox()
-		self.lang_combo.addItems(["en", "es"])
-		self.lang_combo.currentTextChanged.connect(self._on_lang_changed)
-		grid.addWidget(self.lang_combo, 3, 3)
-
-		grid.addWidget(QLabel("Extract workers:"), 4, 0)
-		self.spn_extract_workers = QSpinBox()
-		self.spn_extract_workers.setRange(1, 16)
-		self.spn_extract_workers.setValue(4)
-		grid.addWidget(self.spn_extract_workers, 4, 1)
-
-		grid.addWidget(QLabel("Organize workers:"), 4, 2)
-		self.spn_organize_workers = QSpinBox()
-		self.spn_organize_workers.setRange(1, 32)
-		self.spn_organize_workers.setValue(8)
-		grid.addWidget(self.spn_organize_workers, 4, 3)
+		grid.addWidget(QLabel("Zips will be saved in:"), 3, 0)
+		grid.addWidget(self.download_edit, 3, 1, 1, 3)
+		grid.addWidget(QLabel("Extracted files folder:"), 4, 0)
+		grid.addWidget(self.extract_dst_edit, 4, 1, 1, 3)
+		grid.addWidget(QLabel("Final organized folder:"), 5, 0)
+		grid.addWidget(self.org_dst_edit, 5, 1, 1, 3)
 
 		row = QHBoxLayout()
 		self.btn_download = QPushButton(t("download_archives"))
@@ -149,74 +139,30 @@ class MainWindow(QMainWindow):
 
 		# Progress labels + bars
 		self.lbl_download = QLabel("Download: 0/0 files, 0 bytes")
-		self.pb_download = QProgressBar()
-		self.pb_download.setRange(0, 100)
-		self.pb_download.setValue(0)
+		self.pb_download = QProgressBar(); self.pb_download.setRange(0, 100); self.pb_download.setValue(0)
 		self.lbl_extract = QLabel("Extract: 0/0 archives, 0/0 bytes")
-		self.pb_extract = QProgressBar()
-		self.pb_extract.setRange(0, 100)
-		self.pb_extract.setValue(0)
+		self.pb_extract = QProgressBar(); self.pb_extract.setRange(0, 100); self.pb_extract.setValue(0)
 		self.lbl_organize = QLabel("Organize: 0/0 files")
-		self.pb_organize = QProgressBar()
-		self.pb_organize.setRange(0, 100)
-		self.pb_organize.setValue(0)
-		layout.addWidget(self.lbl_download)
-		layout.addWidget(self.pb_download)
-		layout.addWidget(self.lbl_extract)
-		layout.addWidget(self.pb_extract)
-		layout.addWidget(self.lbl_organize)
-		layout.addWidget(self.pb_organize)
+		self.pb_organize = QProgressBar(); self.pb_organize.setRange(0, 100); self.pb_organize.setValue(0)
+		layout.addWidget(self.lbl_download); layout.addWidget(self.pb_download)
+		layout.addWidget(self.lbl_extract); layout.addWidget(self.pb_extract)
+		layout.addWidget(self.lbl_organize); layout.addWidget(self.pb_organize)
 
-		# Export + Update buttons
+		# Export + Update + Diagnostics buttons
 		export_row = QHBoxLayout()
 		self.btn_export_csv = QPushButton(t("export_csv"))
 		self.btn_export_html = QPushButton(t("export_html"))
 		self.btn_check_update = QPushButton("Check for Updates")
+		self.btn_save_log = QPushButton("Save Error Log")
 		export_row.addWidget(self.btn_export_csv)
 		export_row.addWidget(self.btn_export_html)
 		export_row.addWidget(self.btn_check_update)
+		export_row.addWidget(self.btn_save_log)
 		layout.addLayout(export_row)
 		self.btn_export_csv.clicked.connect(self.export_csv)
 		self.btn_export_html.clicked.connect(self.export_html)
 		self.btn_check_update.clicked.connect(self.check_updates)
-
-		# Extract
-		grid2 = QGridLayout()
-		layout.addLayout(grid2)
-		self.extract_src_edit = QLineEdit()
-		self.extract_dst_edit = QLineEdit()
-		btn_pick_ex_src = QPushButton("Browse…")
-		btn_pick_ex_dst = QPushButton("Browse…")
-		btn_pick_ex_src.clicked.connect(lambda: self.pick_folder_into(self.extract_src_edit))
-		btn_pick_ex_dst.clicked.connect(lambda: self.pick_folder_into(self.extract_dst_edit))
-		grid2.addWidget(QLabel("ZIPs folder:"), 0, 0)
-		grid2.addWidget(self.extract_src_edit, 0, 1)
-		grid2.addWidget(btn_pick_ex_src, 0, 2)
-		grid2.addWidget(QLabel("Extract to:"), 1, 0)
-		grid2.addWidget(self.extract_dst_edit, 1, 1)
-		grid2.addWidget(btn_pick_ex_dst, 1, 2)
-		btn_extract = QPushButton("Extract ZIPs")
-		btn_extract.clicked.connect(self.start_extract)
-		layout.addWidget(btn_extract)
-
-		# Organize
-		grid3 = QGridLayout()
-		layout.addLayout(grid3)
-		self.org_src_edit = QLineEdit()
-		self.org_dst_edit = QLineEdit()
-		btn_pick_org_src = QPushButton("Browse…")
-		btn_pick_org_dst = QPushButton("Browse…")
-		btn_pick_org_src.clicked.connect(lambda: self.pick_folder_into(self.org_src_edit))
-		btn_pick_org_dst.clicked.connect(lambda: self.pick_folder_into(self.org_dst_edit))
-		grid3.addWidget(QLabel("Photos folder:"), 0, 0)
-		grid3.addWidget(self.org_src_edit, 0, 1)
-		grid3.addWidget(btn_pick_org_src, 0, 2)
-		grid3.addWidget(QLabel("Organize into:"), 1, 0)
-		grid3.addWidget(self.org_dst_edit, 1, 1)
-		grid3.addWidget(btn_pick_org_dst, 1, 2)
-		btn_organize = QPushButton("Organize Photos")
-		btn_organize.clicked.connect(self.start_organize)
-		layout.addWidget(btn_organize)
+		self.btn_save_log.clicked.connect(self.save_error_log)
 
 		# Log output
 		self.log = QTextEdit(readOnly=True)
@@ -237,6 +183,40 @@ class MainWindow(QMainWindow):
 
 		self._report = SessionReport()
 
+		# Worker controls (advanced)
+		adv = QGridLayout(); layout.addLayout(adv)
+		adv.addWidget(QLabel("Extract workers:"), 0, 0)
+		self.spn_extract_workers = QSpinBox(); self.spn_extract_workers.setRange(1, 16); self.spn_extract_workers.setValue(4)
+		adv.addWidget(self.spn_extract_workers, 0, 1)
+		adv.addWidget(QLabel("Organize workers:"), 0, 2)
+		self.spn_organize_workers = QSpinBox(); self.spn_organize_workers.setRange(1, 32); self.spn_organize_workers.setValue(8)
+		adv.addWidget(self.spn_organize_workers, 0, 3)
+
+	def save_error_log(self) -> None:
+		path, _ = QFileDialog.getSaveFileName(self, "Save Error Log", "gTakeOutThis-diagnostics.txt", "Text Files (*.txt)")
+		if not path:
+			return
+		root = self.root_edit.text().strip()
+		content = []
+		content.append(f"App: {APP_NAME} {APP_VERSION}")
+		content.append(f"Root: {root}")
+		content.append(f"Zips: {self.download_edit.text()}")
+		content.append(f"Extracted: {self.extract_dst_edit.text()}")
+		content.append(f"Final: {self.org_dst_edit.text()}")
+		content.append(f"Browser: {self.browser_combo.currentText()}")
+		content.append("")
+		content.append("== Summary ==")
+		s = self._report.summarize()
+		content.append(str(s))
+		content.append("")
+		content.append("== Log ==")
+		content.append(self.log.toPlainText())
+		try:
+			Path(path).write_text("\n".join(content), encoding="utf-8")
+			QMessageBox.information(self, "Diagnostics", "Error log saved.")
+		except Exception as e:
+			QMessageBox.warning(self, "Diagnostics", f"Could not save log: {e}")
+
 	def check_updates(self) -> None:
 		latest = get_latest_release(GITHUB_OWNER, GITHUB_REPO)
 		if not latest:
@@ -249,12 +229,22 @@ class MainWindow(QMainWindow):
 		else:
 			QMessageBox.information(self, "Updates", "You are on the latest version.")
 
-	def _on_lang_changed(self, lang: str) -> None:
-		set_language(lang)
-		self.btn_download.setText(t("download_archives"))
-		self.btn_pause.setText(t("pause"))
-		self.btn_export_csv.setText(t("export_csv"))
-		self.btn_export_html.setText(t("export_html"))
+	def pick_root_dir(self) -> None:
+		p = QFileDialog.getExistingDirectory(self, "Select root folder")
+		if not p:
+			return
+		self.root_edit.setText(p)
+		self._update_paths_from_root(Path(p))
+
+	def _update_paths_from_root(self, root: Path) -> None:
+		zips = root / "Zips"
+		extracted = root / "Extracted"
+		final = root / "Google Fotos Backup"
+		self.download_edit.setText(str(zips))
+		self.extract_src_edit.setText(str(zips))
+		self.extract_dst_edit.setText(str(extracted))
+		self.org_src_edit.setText(str(extracted))
+		self.org_dst_edit.setText(str(final))
 
 	def _create_tray_icon(self) -> None:
 		pix = QPixmap(16, 16)
@@ -262,7 +252,6 @@ class MainWindow(QMainWindow):
 		icon = QIcon(pix)
 		tray = QSystemTrayIcon(icon, self)
 		tray.setToolTip(APP_NAME)
-
 		menu = QMenu(self)
 		a_show = QAction("Show", self)
 		a_pause = QAction("Pause Download", self)
@@ -270,58 +259,44 @@ class MainWindow(QMainWindow):
 		a_show.triggered.connect(self._tray_show)
 		a_pause.triggered.connect(self.pause_download)
 		a_exit.triggered.connect(QApplication.instance().quit)
-		menu.addAction(a_show)
-		menu.addAction(a_pause)
-		menu.addSeparator()
-		menu.addAction(a_exit)
+		menu.addAction(a_show); menu.addAction(a_pause); menu.addSeparator(); menu.addAction(a_exit)
 		tray.setContextMenu(menu)
 		tray.activated.connect(self._tray_activated)
 		tray.show()
 		self._tray = tray
 
 	def _tray_show(self) -> None:
-		self.showNormal()
-		self.raise_()
-		self.activateWindow()
+		self.showNormal(); self.raise_(); self.activateWindow()
 
 	def _tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
 		if reason == QSystemTrayIcon.Trigger:
-			if self.isHidden():
-				self._tray_show()
-			else:
-				self.hide()
+			if self.isHidden(): self._tray_show()
+			else: self.hide()
 
 	def _update_tray_tooltip(self) -> None:
-		if not self._tray:
-			return
+		if not self._tray: return
 		self._tray.setToolTip(f"{APP_NAME}: {self._download_completed}/{self._download_total} files, {format_bytes(self._download_bytes)}")
 
 	def append_log(self, text: str) -> None:
-		self.log.append(text)
-		self.statusBar().showMessage(text, 5000)
-
-	def pick_download_dir(self) -> None:
-		p = QFileDialog.getExistingDirectory(self, "Select download folder")
-		if p:
-			self.download_edit.setText(p)
-
-	def pick_folder_into(self, line_edit: QLineEdit) -> None:
-		p = QFileDialog.getExistingDirectory(self, "Select folder")
-		if p:
-			line_edit.setText(p)
+		self.log.append(text); self.statusBar().showMessage(text, 5000)
 
 	def start_download(self) -> None:
 		url = self.url_edit.text().strip()
-		dir_path = Path(self.download_edit.text().strip())
-		browser = self.browser_combo.currentText()
-		if not url or not dir_path:
-			self.append_log("Please provide URL and download folder")
+		root = Path(self.root_edit.text().strip()) if self.root_edit.text().strip() else None
+		if not url or not root:
+			self.append_log("Please provide URL and root folder")
 			return
-		self.btn_download.setEnabled(False)
-		self.btn_pause.setEnabled(True)
-		self._cancel_token = CancelToken()
-		self._download_start_ts = time.time()
-		worker = AsyncWorker(download_all, url, dir_path, browser, self._cancel_token, True, self._on_progress)
+		zips = Path(self.download_edit.text()); zips.mkdir(parents=True, exist_ok=True)
+		self.btn_download.setEnabled(False); self.btn_pause.setEnabled(True)
+		self._cancel_token = CancelToken(); self._download_start_ts = time.time()
+		worker = AsyncWorker(
+			download_all,
+			url,
+			download_dir=zips,
+			browser=self.browser_combo.currentText(),
+			cancel=self._cancel_token,
+			resume=True,
+		)
 		self._start_download_worker(worker)
 		self.hide()
 		if self._tray:
@@ -329,13 +304,10 @@ class MainWindow(QMainWindow):
 
 	def pause_download(self) -> None:
 		if self._cancel_token:
-			self._cancel_token.cancel()
-			self.append_log("Paused. You can close the app and resume later.")
+			self._cancel_token.cancel(); self.append_log("Paused. You can close the app and resume later.")
 
 	def _start_download_worker(self, worker: AsyncWorker) -> None:
-		thread = QThread(self)
-		self._download_thread = thread
-		self._download_worker = worker
+		thread = QThread(self); self._download_thread = thread; self._download_worker = worker
 		worker.moveToThread(thread)
 		thread.started.connect(worker.run)
 		worker.progress.connect(self._on_progress)
@@ -346,10 +318,8 @@ class MainWindow(QMainWindow):
 		thread.start()
 
 	def _on_download_finished(self, ok: bool, msg: str) -> None:
-		self.btn_download.setEnabled(True)
-		self.btn_pause.setEnabled(False)
-		self._cancel_token = None
-		self._download_start_ts = None
+		self.btn_download.setEnabled(True); self.btn_pause.setEnabled(False)
+		self._cancel_token = None; self._download_start_ts = None
 		self._tray_show()
 		if self._tray:
 			self._tray.showMessage("Download finished", msg or "", QSystemTrayIcon.Information, 3000)
@@ -360,21 +330,19 @@ class MainWindow(QMainWindow):
 		src = Path(self.extract_src_edit.text().strip())
 		dst = Path(self.extract_dst_edit.text().strip())
 		if not src or not dst:
-			self.append_log("Please provide ZIPs folder and destination")
+			self.append_log("Please choose a root folder first")
 			return
 		worker = Worker(extract_all, src, dst, max_workers=self.spn_extract_workers.value())
-		self._start_worker(worker)
-		worker.progress.connect(self._on_progress)
+		self._start_worker(worker); worker.progress.connect(self._on_progress)
 
 	def start_organize(self) -> None:
 		src = Path(self.org_src_edit.text().strip())
 		dst = Path(self.org_dst_edit.text().strip())
 		if not src or not dst:
-			self.append_log("Please provide source and destination")
+			self.append_log("Please choose a root folder first")
 			return
 		worker = Worker(organize_photos, src, dst, max_workers=self.spn_organize_workers.value())
-		self._start_worker(worker)
-		worker.progress.connect(self._on_progress)
+		self._start_worker(worker); worker.progress.connect(self._on_progress)
 
 	def _start_worker(self, worker: QObject) -> None:
 		thread = QThread(self)
@@ -385,20 +353,6 @@ class MainWindow(QMainWindow):
 		worker.finished.connect(worker.deleteLater)
 		thread.finished.connect(thread.deleteLater)
 		thread.start()
-
-	def export_csv(self) -> None:
-		path, _ = QFileDialog.getSaveFileName(self, "Save CSV", "session_report.csv", "CSV Files (*.csv)")
-		if not path:
-			return
-		self._report.export_csv(Path(path))
-		QMessageBox.information(self, "Export", "CSV report saved.")
-
-	def export_html(self) -> None:
-		path, _ = QFileDialog.getSaveFileName(self, "Save HTML", "session_report.html", "HTML Files (*.html)")
-		if not path:
-			return
-		self._report.export_html(Path(path))
-		QMessageBox.information(self, "Export", "HTML report saved.")
 
 	@Slot(dict)
 	def _on_progress(self, payload: Dict[str, Any]) -> None:
@@ -413,7 +367,6 @@ class MainWindow(QMainWindow):
 			elif payload.get("event") in {"file_complete", "file_skipped"}:
 				self._download_completed = payload.get("completed_files", self._download_completed)
 				self._download_bytes = payload.get("bytes_completed", self._download_bytes) or self._download_bytes
-			from .utils import estimate_eta_from_counts
 			elapsed = 0.0 if not self._download_start_ts else (time.time() - self._download_start_ts)
 			eta_items = estimate_eta_from_counts(self._download_completed, self._download_total, elapsed)
 			speed_str = f" at {format_bytes(int(self._download_bytes/elapsed))}/s" if elapsed > 0 and self._download_bytes > 0 else ""
@@ -435,7 +388,6 @@ class MainWindow(QMainWindow):
 				self._extract_bytes_total = payload.get("bytes_total", 0)
 			elif evt == "file_complete":
 				self._extract_done = getattr(self, "_extract_done", 0) + 1
-			from .utils import estimate_eta_from_bytes
 			elapsed = max(0.0, time.time() - getattr(self, "_extract_start_ts", time.time()))
 			speed = 0 if elapsed <= 0 else int(self._extract_bytes_done / elapsed)
 			eta = estimate_eta_from_bytes(self._extract_bytes_done, max(1, self._extract_bytes_total), elapsed)
@@ -465,14 +417,13 @@ class MainWindow(QMainWindow):
 			self.hide()
 			if self._tray:
 				self._tray.showMessage("Still downloading", "App minimized to tray.", QSystemTrayIcon.Information, 2000)
-			event.ignore()
-			return
+			event.ignore(); return
 		event.accept()
 
 
 def run_gui() -> None:
 	app = QApplication([])
 	win = MainWindow()
-	win.resize(900, 820)
+	win.resize(900, 780)
 	win.show()
 	app.exec()
