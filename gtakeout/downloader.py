@@ -244,12 +244,12 @@ async def download_all(
 		try:
 			while waited < max_wait_ms:
 				# Ensure we're on the Manage archive page; sometimes Google redirects to account chooser or interstitials
-			try:
-				url_now = page.url
-				if "takeout.google.com" not in url_now:
-					await page.goto(url)
-			except Exception:
-				pass
+				try:
+					url_now = page.url
+					if "takeout.google.com" not in url_now:
+						await page.goto(url)
+				except Exception:
+					pass
 				# Scroll to make lazy-loaded buttons appear
 				try:
 					await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
