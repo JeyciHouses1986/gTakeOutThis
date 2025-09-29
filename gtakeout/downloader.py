@@ -133,9 +133,23 @@ async def _prepare_context(browser: str, download_dir: Path) -> BrowserContext:
 		elif browser == "webkit":
 			browser_obj = await p.webkit.launch(headless=False)
 		else:
-			browser_obj = await p.chromium.launch(headless=False)
-		context = await browser_obj.new_context(accept_downloads=True)
-		return context
+			# Prefer real Chrome channel with a persistent user data dir to satisfy Google login
+			user_data_dir = Path(os.environ.get("LOCALAPPDATA") or str(Path.home())) / "gTakeOutThis" / "chrome-profile"
+			user_data_dir.mkdir(parents=True, exist_ok=True)
+			try:
+				# Launch installed Chrome if available
+				context = await p.chromium.launch_persistent_context(
+					str(user_data_dir),
+					channel="chrome",
+					headless=False,
+					accept_downloads=True,
+				)
+				return context
+			except Exception:
+				# Fallback to bundled Chromium if Chrome channel not available
+				browser_obj = await p.chromium.launch(headless=False)
+				context = await browser_obj.new_context(accept_downloads=True)
+				return context
 
 	try:
 		return await _launch()
