@@ -1,0 +1,1 @@
+﻿# Python\n__pycache__/\n*.py[cod]\n*.pyo\n*.pyd\n\n# Logs\n*.log\n\n# Build artifacts\ndist/\nbuild/\n*.spec\n\n# Local test dirs\ntmp-test/\n
