@@ -17,16 +17,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller==6.10.0
           python -m playwright install chromium
-      - name: Build app
+      - name: Build (one-file, GUI)
         run: |
-          pyinstaller installer/gtakeout.spec
+          pyinstaller -F -w --name gTakeOutThis --collect-all PySide6 -m gtakeout.ui
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: gTakeOutThis-windows
-          path: dist/gTakeOutThis/**
+          path: dist/gTakeOutThis.exe
 
   create-release:
     needs: build-windows
@@ -37,11 +37,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: gTakeOutThis-windows
-          path: dist/gTakeOutThis
+          path: dist
       - name: Zip Windows build
         run: |
           cd dist
-          zip -r gTakeOutThis-windows.zip gTakeOutThis
+          zip -r gTakeOutThis-windows.zip gTakeOutThis.exe
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
